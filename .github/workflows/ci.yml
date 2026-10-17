@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - name: ruff check
+        run: uv run ruff check .
+      - name: ruff format --check
+        run: uv run ruff format --check .
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run mypy ingestion
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    services:
+      qdrant:
+        image: qdrant/qdrant:v1.19.2
+        ports:
+          - 6333:6333
+    env:
+      QDRANT_URL: http://localhost:6333
+      # Unit tests mock Nebius; make sure nothing could reach the real API.
+      NEBIUS_API_KEY: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - name: Wait for Qdrant
+        run: |
+          for i in $(seq 1 30); do curl -sf localhost:6333/readyz && exit 0; sleep 1; done
+          exit 1
+      - name: pytest (unit + integration) with coverage
+        run: uv run pytest --cov --cov-report=term-missing --cov-report=xml --cov-fail-under=70
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage.xml
+
+  docker:
+    name: docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build ingestion image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: bookembed-ingestion:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Compose smoke test (fixture data, fake dense vectors)
+        run: ./scripts/smoke_test.sh

@@ -1,0 +1,37 @@
+# Mirrors CI. Install with: uv run pre-commit install
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--unsafe]  # docker-compose.smoke.yml uses the !reset tag
+      - id: check-added-large-files
+        args: [--maxkb=500]
+        exclude: ^uv\.lock$
+      - id: detect-private-key
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy
+        entry: uv run mypy ingestion
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: pytest
+        name: pytest (unit, coverage >= 70%)
+        entry: uv run pytest -m "not integration" --cov --cov-fail-under=70 -q
+        language: system
+        types: [python]
+        pass_filenames: false

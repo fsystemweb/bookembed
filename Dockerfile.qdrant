@@ -1,0 +1,12 @@
+# Qdrant with the books collection baked in; restored at startup, no re-embedding.
+# Build context is snapshots/ (the root .dockerignore excludes it):
+#   docker build -f Dockerfile.qdrant -t bookembed-qdrant:preloaded snapshots/
+# scripts/build_preloaded_image.sh does the snapshot + build in one go.
+FROM qdrant/qdrant:v1.19.2
+ARG SNAPSHOT=books.snapshot
+ARG COLLECTION=books
+ENV BOOKS_COLLECTION=${COLLECTION}
+COPY ${SNAPSHOT} /qdrant/snapshots-import/books.snapshot
+# --snapshot only restores when the collection does not exist yet, so a persistent
+# volume mounted on /qdrant/storage keeps any later changes across restarts.
+CMD ["bash", "-c", "exec ./entrypoint.sh --snapshot /qdrant/snapshots-import/books.snapshot:${BOOKS_COLLECTION}"]

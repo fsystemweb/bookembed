@@ -1,0 +1,73 @@
+[project]
+name = "bookembed"
+version = "0.1.0"
+description = "Ingest a books CSV into Qdrant with Nebius dense + BM25 sparse vectors for hybrid search."
+readme = "README.md"
+authors = [{ name = "fsystemweb" }]
+requires-python = ">=3.11"
+dependencies = [
+    "fastembed>=0.9.0",
+    "httpx>=0.28.1",
+    "langchain-core>=1.6.12",
+    "langchain-openai>=1.7.2",
+    "langchain-qdrant>=1.1.0",
+    "pandas>=3.0.6",
+    "pydantic-settings>=2.16.0",
+    "qdrant-client>=1.19.1",
+    "tenacity>=9.2.1",
+]
+
+[project.scripts]
+bookembed = "ingestion.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12.24,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "ingestion"
+module-root = ""
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.0",
+    "pandas-stubs>=3.0.5.260914",
+    "pre-commit>=4.7.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.1",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "S", "PT", "N"]
+ignore = ["S101"]  # assert is fine in tests and for type narrowing
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "N802"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["ingestion"]
+
+[[tool.mypy.overrides]]
+module = ["fastembed.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = ["integration: needs a running Qdrant at QDRANT_URL (skipped otherwise)"]
+filterwarnings = ["ignore:Payload indexes have no effect in the local Qdrant:UserWarning"]
+
+[tool.coverage.run]
+source = ["ingestion"]
+omit = ["ingestion/__main__.py"]
+
+[tool.coverage.report]
+fail_under = 70
+show_missing = true
