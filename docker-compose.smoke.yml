@@ -1,0 +1,13 @@
+# Keyless end-to-end check on the committed fixture (used by qa-validator and CI):
+#   docker compose -p bookembed-smoke -f docker-compose.yml -f docker-compose.smoke.yml up ...
+# Fake dense vectors + real BM25, so no NEBIUS_API_KEY or Kaggle access is needed.
+services:
+  qdrant:
+    ports: !reset []
+  ingestion:
+    env_file: !reset []
+    environment:
+      EMBEDDING_PROVIDER: fake
+      BOOKS_CSV: /app/fixtures/books_sample.csv
+      QDRANT_COLLECTION: books
+    volumes: !reset []
