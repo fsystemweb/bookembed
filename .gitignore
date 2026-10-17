@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.egg-info/
+
+# Tooling
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Secrets & local data (the full dataset is never committed; tests use tests/fixtures/)
+.env
+data/
+snapshots/*
+!snapshots/.gitkeep
+
+# Claude Code local state (agent definitions in .claude/agents/ ARE committed)
+.claude/settings.local.json
