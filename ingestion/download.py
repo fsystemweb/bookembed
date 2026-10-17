@@ -13,8 +13,6 @@ from ingestion.config import Settings
 
 logger = logging.getLogger(__name__)
 
-KAGGLE_DOWNLOAD_URL = "https://www.kaggle.com/api/v1/datasets/download/{dataset}"
-
 
 def download_dataset(settings: Settings, client: httpx.Client | None = None) -> Path:
     """Download `settings.kaggle_file` into `settings.data_dir` and return its path.
@@ -34,9 +32,9 @@ def download_dataset(settings: Settings, client: httpx.Client | None = None) -> 
     else:
         logger.warning("KAGGLE_USERNAME/KAGGLE_KEY not set; trying anonymous download")
 
-    url = KAGGLE_DOWNLOAD_URL.format(dataset=settings.kaggle_dataset)
+    url = settings.kaggle_download_url.format(dataset=settings.kaggle_dataset)
     owns_client = client is None
-    http = client or httpx.Client(follow_redirects=True, timeout=120)
+    http = client or httpx.Client(follow_redirects=True, timeout=settings.download_timeout)
     try:
         logger.info("Downloading %s", url)
         response = http.get(url, auth=auth)

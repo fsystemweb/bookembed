@@ -6,6 +6,7 @@ from collections import Counter
 from collections.abc import Iterator
 from pathlib import Path
 
+import httpx
 import pytest
 from langchain_core.embeddings import DeterministicFakeEmbedding
 from langchain_qdrant.sparse_embeddings import SparseEmbeddings, SparseVector
@@ -36,10 +37,22 @@ class HashingSparse(SparseEmbeddings):
 
 @pytest.fixture(autouse=True)
 def _isolate_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    # Never pick up a developer's real .env or credentials in unit tests.
+    # Never pick up a developer's real .env, credentials or overrides in tests.
     monkeypatch.chdir(tmp_path)
-    for var in ("NEBIUS_API_KEY", "KAGGLE_USERNAME", "KAGGLE_KEY", "QDRANT_API_KEY"):
-        monkeypatch.delenv(var, raising=False)
+    for name in Settings.model_fields:
+        monkeypatch.delenv(name.upper(), raising=False)
+
+
+@pytest.fixture(autouse=True)
+def _block_network(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unit tests must never reach Nebius/Kaggle; only httpx.MockTransport is allowed."""
+    if request.node.get_closest_marker("integration"):
+        return
+
+    def refuse(self: httpx.HTTPTransport, request: httpx.Request) -> httpx.Response:
+        raise RuntimeError(f"unit test tried to reach the network: {request.url}")
+
+    monkeypatch.setattr(httpx.HTTPTransport, "handle_request", refuse)
 
 
 @pytest.fixture

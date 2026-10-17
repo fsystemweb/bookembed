@@ -72,7 +72,7 @@ def test_ingest_creates_hybrid_collection(loaded: QdrantClient) -> None:
 def test_reingest_is_idempotent(
     loaded: QdrantClient, dense: DeterministicFakeEmbedding, sparse: HashingSparse
 ) -> None:
-    pipeline.ingest_books(_books(), loaded, COLLECTION, dense, sparse)
+    pipeline.ingest_books(_books(), loaded, COLLECTION, dense, sparse, batch_size=64)
     assert loaded.count(COLLECTION).count == 3
 
 

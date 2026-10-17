@@ -57,6 +57,18 @@ def test_download_missing_file_in_archive(settings: Settings) -> None:
         download_dataset(settings, _client(_zip({"other.csv": "x"}), []))
 
 
+def test_download_uses_configured_url(settings: Settings) -> None:
+    settings.kaggle_download_url = "https://mirror.test/{dataset}.zip"
+    seen: list[httpx.Request] = []
+    download_dataset(settings, _client(_zip({"books.csv": "x"}), seen))
+    assert str(seen[0].url) == "https://mirror.test/dylanjcastillo/7k-books-with-metadata.zip"
+
+
+def test_unit_tests_cannot_reach_network(settings: Settings) -> None:
+    with pytest.raises(RuntimeError, match="tried to reach the network"):
+        download_dataset(settings)
+
+
 def test_download_http_error(settings: Settings) -> None:
     client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(403)))
     with pytest.raises(httpx.HTTPStatusError):

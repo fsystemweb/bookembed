@@ -35,7 +35,7 @@ class RetryingEmbeddings(Embeddings):
     def __init__(
         self,
         inner: Embeddings,
-        max_retries: int = 6,
+        max_retries: int,
         min_wait: float = 1.0,
         max_wait: float = 60.0,
     ) -> None:

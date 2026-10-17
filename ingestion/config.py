@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     kaggle_username: str | None = None
     kaggle_key: SecretStr | None = None
     kaggle_dataset: str = "dylanjcastillo/7k-books-with-metadata"
+    kaggle_download_url: str = "https://www.kaggle.com/api/v1/datasets/download/{dataset}"
+    download_timeout: int = Field(default=120, gt=0)
     kaggle_file: str = "books.csv"
     data_dir: Path = Path("data")
     # When set and the file exists, it is used as-is and nothing is downloaded.
@@ -45,6 +47,7 @@ class Settings(BaseSettings):
     qdrant_collection: str = "books"
     qdrant_timeout: int = Field(default=60, gt=0)
     qdrant_wait_seconds: int = Field(default=60, ge=0)
+    snapshot_dir: Path = Path("snapshots")
 
     @model_validator(mode="after")
     def _require_nebius_key(self) -> Settings:

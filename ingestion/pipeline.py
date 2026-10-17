@@ -61,7 +61,7 @@ def ingest_books(
     dense: Embeddings,
     sparse: SparseEmbeddings,
     *,
-    batch_size: int = 64,
+    batch_size: int,
     recreate: bool = False,
 ) -> int:
     """Upsert `books` into `collection`. Re-running is idempotent: IDs derive from ISBN13."""

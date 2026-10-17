@@ -43,7 +43,7 @@ uv run bookembed download                 # -> data/books.csv
 uv run bookembed ingest                   # download if needed, embed, upsert
 uv run bookembed ingest --recreate        # drop + rebuild (e.g. after changing model)
 uv run bookembed search "cozy mystery in a small village" --min-rating 4
-uv run bookembed snapshot --out snapshots/books.snapshot
+uv run bookembed snapshot                 # -> snapshots/books.snapshot
 ```
 
 Run the checks the same way CI does:
@@ -65,17 +65,24 @@ the environment or from `.env`. See `.env.example`.
 | `NEBIUS_EMBEDDING_MODEL` | `Qwen/Qwen3-Embedding-8B` | Any Nebius embedding model, e.g. `BAAI/bge-en-icl` |
 | `NEBIUS_BASE_URL` | `https://api.tokenfactory.nebius.com/v1/` | OpenAI-compatible endpoint (`https://api.studio.nebius.com/v1/` also works) |
 | `EMBEDDING_PROVIDER` | `nebius` | `fake` = deterministic offline vectors, for tests and smoke runs only |
+| `FAKE_EMBEDDING_DIM` | `384` | Vector size of the `fake` provider |
 | `EMBEDDING_BATCH_SIZE` | `64` | Texts per embedding request and per Qdrant upsert |
 | `EMBEDDING_MAX_RETRIES` | `6` | Retries on 429 / 5xx / timeouts, with jittered exponential backoff |
+| `SPARSE_MODEL` | `Qdrant/bm25` | FastEmbed sparse model (keep in sync with the Docker build arg of the same name) |
+| `FASTEMBED_CACHE_DIR` | FastEmbed default (`/opt/fastembed` in Docker) | BM25 model cache |
 | `KAGGLE_USERNAME`, `KAGGLE_KEY` | unset | Kaggle API credentials. Optional: the dataset is public |
 | `KAGGLE_DATASET` | `dylanjcastillo/7k-books-with-metadata` | Dataset slug |
+| `KAGGLE_FILE` | `books.csv` | File to extract from the dataset archive |
+| `KAGGLE_DOWNLOAD_URL` | `https://www.kaggle.com/api/v1/datasets/download/{dataset}` | Download endpoint template |
+| `DOWNLOAD_TIMEOUT` | `120` | Seconds before the dataset download gives up |
 | `BOOKS_CSV` | unset | Ingest this local CSV instead of downloading |
 | `DATA_DIR` | `data` (`/app/data` in Docker) | Where the downloaded CSV is cached |
 | `QDRANT_URL` | `http://localhost:6333` | Compose sets `http://qdrant:6333` |
 | `QDRANT_API_KEY` | unset | For Qdrant Cloud or secured instances |
 | `QDRANT_COLLECTION` | `books` | Collection name |
-| `SPARSE_MODEL` | `Qdrant/bm25` | FastEmbed sparse model |
-| `FASTEMBED_CACHE_DIR` | FastEmbed default (`/opt/fastembed` in Docker) | BM25 model cache |
+| `QDRANT_TIMEOUT` | `60` | Qdrant client request timeout, in seconds |
+| `QDRANT_WAIT_SECONDS` | `60` | How long ingestion waits for Qdrant to come up |
+| `SNAPSHOT_DIR` | `snapshots` (`/app/snapshots` in Docker) | Default output dir for `bookembed snapshot` |
 | `QDRANT_HTTP_PORT`, `QDRANT_GRPC_PORT` | `6333`, `6334` | Host ports published by compose |
 
 ## Example searches
@@ -105,9 +112,13 @@ from ingestion.store import connect
 
 s = get_settings()
 hits = hybrid_search(
-    connect(s), s.qdrant_collection, "space opera with strong female lead",
-    build_dense_embeddings(s), build_sparse_embeddings(s),
-    filters=SearchFilters(min_year=2001, min_rating=4.0), limit=5,
+    connect(s),
+    s.qdrant_collection,
+    "space opera with strong female lead",
+    build_dense_embeddings(s),
+    build_sparse_embeddings(s),
+    filters=SearchFilters(min_year=2001, min_rating=4.0),
+    limit=5,
 )
 for h in hits:
     print(h.score, h.book["title"], h.book["authors"])

@@ -49,7 +49,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     snap = sub.add_parser("snapshot", help="snapshot the collection to a local file")
-    snap.add_argument("--out", type=Path, default=Path("snapshots/books.snapshot"))
+    snap.add_argument("--out", type=Path, help="default: SNAPSHOT_DIR/<collection>.snapshot")
     return parser
 
 
@@ -111,6 +111,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "snapshot":
         client = connect(settings)
         wait_for_qdrant(client, settings.qdrant_wait_seconds)
-        print(create_snapshot(settings, client, args.out))
+        out = args.out or settings.snapshot_dir / f"{settings.qdrant_collection}.snapshot"
+        print(create_snapshot(settings, client, out))
         return 0
     raise AssertionError(f"unhandled command {args.command}")  # pragma: no cover

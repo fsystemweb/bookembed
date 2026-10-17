@@ -101,3 +101,13 @@ def test_cli_snapshot(
     monkeypatch.setattr(cli, "create_snapshot", lambda s, c, out: calls.append(out) or out)
     assert cli.main(["snapshot", "--out", str(tmp_path / "s.snapshot")]) == 0
     assert calls == [tmp_path / "s.snapshot"]
+
+
+def test_cli_snapshot_default_path(
+    cli_env: QdrantClient, settings: Settings, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    settings.snapshot_dir = tmp_path / "snaps"
+    calls: list[Path] = []
+    monkeypatch.setattr(cli, "create_snapshot", lambda s, c, out: calls.append(out) or out)
+    assert cli.main(["snapshot"]) == 0
+    assert calls == [tmp_path / "snaps" / "test_books.snapshot"]
