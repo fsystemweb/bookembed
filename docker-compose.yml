@@ -1,5 +1,6 @@
 # `docker compose up` -> Qdrant starts, `ingestion` downloads + embeds + upserts the
 # dataset and exits 0, Qdrant keeps serving the populated `books` collection.
+# `docker compose --profile mcp up -d mcp` additionally serves the search as MCP tools.
 services:
   qdrant:
     image: qdrant/qdrant:v1.19.2
@@ -36,6 +37,29 @@ services:
         condition: service_healthy
     command: ["ingest"]
     restart: "no"
+
+  # Optional MCP server over streamable HTTP (http://localhost:8000/mcp). Behind a profile so
+  # plain `docker compose up` is unchanged: `docker compose --profile mcp up -d mcp`.
+  mcp:
+    profiles: ["mcp"]
+    image: bookembed-ingestion:latest
+    build: .
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      MCP_TRANSPORT: http
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "8000"
+    ports:
+      - "${MCP_HTTP_PORT:-8000}:8000"
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    entrypoint: ["bookembed-mcp"]
+    command: []
+    restart: unless-stopped
 
 volumes:
   qdrant_storage:
