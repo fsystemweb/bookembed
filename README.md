@@ -83,7 +83,12 @@ the environment or from `.env`. See `.env.example`.
 | `QDRANT_TIMEOUT` | `60` | Qdrant client request timeout, in seconds |
 | `QDRANT_WAIT_SECONDS` | `60` | How long ingestion waits for Qdrant to come up |
 | `SNAPSHOT_DIR` | `snapshots` (`/app/snapshots` in Docker) | Default output dir for `bookembed snapshot` |
+| `MCP_TRANSPORT` | `stdio` | `bookembed-mcp` transport: `stdio` or `http` (streamable HTTP at `/mcp`) |
+| `MCP_HOST` | `127.0.0.1` | Bind address for `http` (the compose `mcp` service uses `0.0.0.0`) |
+| `MCP_PORT` | `8000` | Port for `http` |
+| `MCP_MAX_LIMIT` | `50` | Upper bound for the `limit` argument of `search_books` |
 | `QDRANT_HTTP_PORT`, `QDRANT_GRPC_PORT` | `6333`, `6334` | Host ports published by compose |
+| `MCP_HTTP_PORT` | `8000` | Host port published by the optional compose `mcp` service |
 
 ## Example searches
 
@@ -122,6 +127,52 @@ hits = hybrid_search(
 )
 for h in hits:
     print(h.score, h.book["title"], h.book["authors"])
+```
+
+## MCP server
+
+`bookembed-mcp` exposes the same hybrid search as [MCP](https://modelcontextprotocol.io) tools
+(built with FastMCP), so an LLM agent can query the catalogue. It reads the same settings as the
+CLI (`QDRANT_*`, `EMBEDDING_PROVIDER`, `NEBIUS_*`) and builds the Qdrant client and embedders on
+the first tool call, so it starts even if Qdrant is still down.
+
+| Tool | Arguments | Returns |
+|---|---|---|
+| `search_books` | `query` (required), `authors[]`, `categories[]`, `min_year`, `max_year`, `min_rating`, `max_pages`, `limit` (1..`MCP_MAX_LIMIT`, default 5) | books ranked by fused score: `score`, `isbn13`, `isbn10`, `title`, `subtitle`, `authors`, `categories`, `published_year`, `average_rating`, `num_pages`, `ratings_count`, `description`, `thumbnail` |
+| `get_book` | `isbn13` (13 digits) | one book record, same fields minus `score` |
+| `collection_info` | none | `collection`, `exists`, `points_count` |
+
+Filters behave like the CLI flags: exact matches on authors/categories (OR within a list), AND
+across filters. A missing collection or unreachable Qdrant comes back as a readable tool error.
+
+```bash
+uv run bookembed-mcp                                  # stdio (what desktop clients spawn)
+MCP_TRANSPORT=http uv run bookembed-mcp               # http://127.0.0.1:8000/mcp
+docker compose --profile mcp up -d mcp                # http://localhost:8000/mcp, next to Qdrant
+```
+
+Claude Code:
+
+```bash
+# stdio, run from the repo checkout
+claude mcp add bookembed -- uv run --directory /path/to/bookembed bookembed-mcp
+# or the HTTP service
+claude mcp add --transport http bookembed http://localhost:8000/mcp
+```
+
+Claude Desktop (`claude_desktop_config.json`); `.env` in the repo is picked up because `uv`
+runs from that directory:
+
+```json
+{
+  "mcpServers": {
+    "bookembed": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/bookembed", "bookembed-mcp"],
+      "env": { "QDRANT_URL": "http://localhost:6333" }
+    }
+  }
+}
 ```
 
 ## Architecture
@@ -169,11 +220,12 @@ ingestion/            the package
   search.py           hybrid query with filters + RRF
   snapshot.py         snapshot creation and download
   cli.py              `bookembed` entry point
+  mcp_server.py       `bookembed-mcp`: FastMCP server with the search tools
 tests/                unit tests (offline) + tests/integration (real Qdrant)
 tests/fixtures/       52-row sample of books.csv
 Dockerfile            ingestion image
 Dockerfile.qdrant     Qdrant image pre-loaded from a snapshot
-docker-compose.yml    qdrant + ingestion
+docker-compose.yml    qdrant + ingestion (+ optional `mcp` profile)
 docker-compose.smoke.yml  keyless fixture override (CI, qa-validator)
 scripts/              smoke_test.sh, build_preloaded_image.sh
 .claude/agents/       builder and qa-validator sub-agent definitions

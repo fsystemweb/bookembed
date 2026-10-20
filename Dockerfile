@@ -38,5 +38,8 @@ RUN useradd --create-home --uid 10001 app \
     && chown -R app /app/data /app/snapshots /opt/fastembed
 USER app
 
+# Used by the optional MCP server (`bookembed-mcp` with MCP_TRANSPORT=http).
+EXPOSE 8000
+
 ENTRYPOINT ["bookembed"]
 CMD ["ingest"]

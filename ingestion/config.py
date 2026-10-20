@@ -16,6 +16,11 @@ class EmbeddingProvider(StrEnum):
     FAKE = "fake"
 
 
+class McpTransport(StrEnum):
+    STDIO = "stdio"
+    HTTP = "http"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -48,6 +53,13 @@ class Settings(BaseSettings):
     qdrant_timeout: int = Field(default=60, gt=0)
     qdrant_wait_seconds: int = Field(default=60, ge=0)
     snapshot_dir: Path = Path("snapshots")
+
+    # --- MCP server (`bookembed-mcp`) ---------------------------------------
+    mcp_transport: McpTransport = McpTransport.STDIO
+    # Loopback by default; the Docker service binds 0.0.0.0 explicitly.
+    mcp_host: str = "127.0.0.1"
+    mcp_port: int = Field(default=8000, gt=0, lt=65536)
+    mcp_max_limit: int = Field(default=50, gt=0)
 
     @model_validator(mode="after")
     def _require_nebius_key(self) -> Settings:
