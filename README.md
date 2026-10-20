@@ -179,21 +179,28 @@ runs from that directory:
 
 ```mermaid
 flowchart LR
-    subgraph ingest["ingestion container (runs once, exits)"]
-        K[Kaggle API<br/>books.csv] --> L[data.load_books<br/>clean · split authors · coerce types · dedupe]
-        L --> T["Book.embedding_text()<br/>title + subtitle + authors + categories + description"]
-        T --> D[Nebius embeddings<br/>OpenAI-compatible API<br/>batched + retry/backoff]
-        T --> S[FastEmbed Qdrant/bm25<br/>sparse, baked into image]
-        D & S --> U["LangChain QdrantVectorStore.add_texts<br/>id = uuid5(isbn13) → upsert"]
+    subgraph ingest["Ingestion container (runs once, then exits)"]
+        K["Kaggle API<br/>books.csv"] --> L["data.load_books<br/>Clean · split authors · coerce types · deduplicate"]
+        L --> T["Book.embedding_text()<br/>Title + subtitle + authors + categories + description"]
+        T --> D["Nebius embeddings<br/>OpenAI-compatible API<br/>Batched requests + retry/backoff"]
+        T --> S["FastEmbed Qdrant/BM25<br/>Sparse vectors, baked into image"]
+        D --> U["LangChain QdrantVectorStore.add_texts<br/>ID = uuid5(isbn13) → upsert"]
+        S --> U
     end
-    U --> Q[(Qdrant<br/>collection books<br/>dense · sparse(IDF) · payload indexes<br/>persistent volume)]
-    subgraph search["search CLI / module"]
-        QQ[query + filters] --> P1[dense prefetch]
-        QQ --> P2[sparse prefetch]
-        P1 & P2 --> F[RRF fusion]
+
+    U --> Q["Qdrant collection: books<br/>Dense + sparse (IDF) vectors<br/>Payload indexes · persistent volume"]
+
+    subgraph search["Search CLI / module"]
+        QQ["Query + filters"] --> P1["Dense prefetch"]
+        QQ --> P2["Sparse prefetch"]
+        P1 --> F["RRF fusion"]
+        P2 --> F
     end
+
     Q <--> search
-    Q -. bookembed snapshot .-> SN[books.snapshot] -. Dockerfile.qdrant .-> IMG[pre-loaded Qdrant image]
+
+    Q -. "Book embedding snapshot" .-> SN["books.snapshot"]
+    SN -. "Dockerfile.qdrant" .-> IMG["Preloaded Qdrant image"]
 ```
 
 **Collection layout**
